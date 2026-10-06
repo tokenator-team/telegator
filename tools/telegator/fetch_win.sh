@@ -9,7 +9,7 @@
 # и кладёт ~/Projects/telegator-wt/dist/Telegator-setup.exe.
 set -euo pipefail
 
-repo=kdedushev/telegator
+repo=tokenator-team/telegator
 root=~/Projects/telegator-wt
 key=$root/artifact.key
 run=${1:-$(gh run list --repo $repo --workflow telegator-win.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')}

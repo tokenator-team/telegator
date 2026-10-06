@@ -30,7 +30,7 @@
 | Что | Где |
 |---|---|
 | Локальный репозиторий | `~/Projects/telegator` |
-| GitHub (публичный) | `kdedushev/telegator`, ветка `main` |
+| GitHub (публичный) | `tokenator-team/telegator`, ветка `main` |
 | Оригинал Telegram | remote `upstream`, ветка `dev`, теги `vX.Y.Z` |
 | Наш код | `Telegram/SourceFiles/telegator/` |
 | Скачанные сборки | `builds/` — локально, в git не попадает |
@@ -98,7 +98,7 @@ Release для владельца: в configure — `-D "CMAKE_CONFIGURATION_TYP
 `Telegator-macos` (zip с `.app`).
 
 ```bash
-gh workflow run "Telegator macOS" --repo kdedushev/telegator --ref main -f only_cache=false
+gh workflow run "Telegator macOS" --repo tokenator-team/telegator --ref main -f only_cache=false
 ```
 
 - `only_cache=true` — только собрать библиотеки в кеш. Кеш привязан к хэшу
@@ -167,7 +167,7 @@ tools/telegator/package_mac.sh
 
 ## Раздача сотрудникам (Windows)
 
-Облако: `gh workflow run telegator-win.yml --repo kdedushev/telegator --ref main`
+Облако: `gh workflow run telegator-win.yml --repo tokenator-team/telegator --ref main`
 (Actions → «Telegator Windows»), затем `tools/telegator/fetch_win.sh` —
 `~/Projects/telegator-wt/dist/Telegator-setup.exe`. Панель — секрет
 `TELEGATOR_PANEL_CONFIG`, ложится рядом с exe; артефакт — 7z под ключом
