@@ -12,10 +12,9 @@ jobs:
 
   macos:
     name: macOS
-    runs-on: macos-latest
+    runs-on: macos-15
 
     env:
-      UPLOAD_ARTIFACT: ${{ inputs.only_cache && 'false' || 'true' }}
       ONLY_CACHE: ${{ inputs.only_cache && 'true' || 'false' }}
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
 
@@ -29,20 +28,31 @@ jobs:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
 
+      - name: Release secrets.
+        if: env.ONLY_CACHE == 'false'
+        env:
+          API_ID: ${{ secrets.TDESKTOP_API_ID }}
+          API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+          PANEL_CONFIG: ${{ secrets.TELEGATOR_PANEL_CONFIG }}
+          ARTIFACT_KEY: ${{ secrets.TELEGATOR_ARTIFACT_KEY }}
+        run: |
+          [ -n "$API_ID" ] && [ -n "$API_HASH" ] && [ -n "$PANEL_CONFIG" ] && [ -n "$ARTIFACT_KEY" ] || {
+            echo "Нужны секреты TDESKTOP_API_ID, TDESKTOP_API_HASH, TELEGATOR_PANEL_CONFIG и TELEGATOR_ARTIFACT_KEY"
+            exit 1
+          }
+
       - name: First set up.
         run: |
           sudo chown -R `whoami`:admin /usr/local/share
 
           brew update
           brew upgrade || true
-          brew install automake libtool meson nasm ninja pkg-config
+          brew install automake libtool meson nasm ninja pkg-config sevenzip
 
           # Disable spotlight.
           sudo mdutil -a -i off
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
-          sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
       - name: Libraries cache.
         id: cache-libs
@@ -51,60 +61,63 @@ jobs:
           path: |
             Libraries
             ThirdParty
-          key: ${{ runner.OS }}-libs-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
-          restore-keys: ${{ runner.OS }}-libs-
+          key: ${{ runner.OS }}-${{ runner.arch }}-macos-15-libsrel-release-universal-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH), format('{0}/Telegram/build/qt_version.py', env.REPO_NAME)) }}
 
       - name: Libraries.
         run: |
-          ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
+          ./$REPO_NAME/Telegram/build/prepare/mac.sh silent
 
       - name: Free up some disk space.
         run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
 
-
-      - name: API credentials.
+      - name: Telegator build.
+        if: env.ONLY_CACHE == 'false'
         env:
           API_ID: ${{ secrets.TDESKTOP_API_ID }}
           API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
         run: |
-          if [ -n "$API_ID" ] && [ -n "$API_HASH" ]; then
-            echo "API_DEFINES=-D TDESKTOP_API_ID=$API_ID -D TDESKTOP_API_HASH=$API_HASH" >> $GITHUB_ENV
-            echo "Using own API credentials."
-          else
-            echo "API_DEFINES=-D TDESKTOP_API_TEST=ON" >> $GITHUB_ENV
-            echo "WARNING: using Telegram test credentials, login will be limited."
-          fi
-
-      - name: Telegator build.
-        if: env.ONLY_CACHE == 'false'
-        run: |
           cd $REPO_NAME/Telegram
 
           ./configure.sh \
-          -D CMAKE_CONFIGURATION_TYPES=Debug \
+          -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON \
           -D CMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
           -D CMAKE_CXX_FLAGS=-DMETA_NO_STD_FORWARD_DECLARATIONS \
-          $API_DEFINES
+          -D TDESKTOP_API_ID="$API_ID" \
+          -D TDESKTOP_API_HASH="$API_HASH" > /dev/null 2>&1 || {
+            echo "Configure failed (output hidden to protect API credentials)."
+            exit 1
+          }
 
-          cmake --build ../out --config Debug --parallel
+          cmake --build ../out --config Release --parallel
 
       - name: Package artifact.
         if: env.ONLY_CACHE == 'false'
+        env:
+          PANEL_CONFIG: ${{ secrets.TELEGATOR_PANEL_CONFIG }}
+          ARTIFACT_KEY: ${{ secrets.TELEGATOR_ARTIFACT_KEY }}
+          TELEGATOR_COMMIT: ${{ github.sha }}
         run: |
-          cd $REPO_NAME/out/Debug
-          mkdir artifact
-          cp -a Telegator.app artifact/
-          cd artifact
-          zip -qry ../Telegator-macos.zip Telegator.app
+          set -e
+          export TELEGATOR_ROOT="$RUNNER_TEMP/telegator-package"
+          export TELEGATOR_CONFIG
+          TELEGATOR_CONFIG=$(mktemp "$RUNNER_TEMP/telegator-config.XXXXXX")
+          trap 'rm -f "$TELEGATOR_CONFIG"' EXIT
+          export TELEGATOR_DIST="$GITHUB_WORKSPACE/installer"
+          export TELEGATOR_PYTHON=python3
+          printf '%s' "$PANEL_CONFIG" > "$TELEGATOR_CONFIG"
+          "$REPO_NAME/tools/telegator/package_mac.sh" "$GITHUB_WORKSPACE/$REPO_NAME/out/Release/Telegator.app"
+          cd "$TELEGATOR_DIST"
+          7zz a -t7z -mhe=on "-p$ARTIFACT_KEY" "Telegator-macos-$GITHUB_SHA.7z" ./*.dmg > /dev/null
+          rm ./*.dmg
 
       - uses: actions/upload-artifact@v7
         if: env.ONLY_CACHE == 'false'
         name: Upload artifact.
         with:
-          name: Telegator-macos
-          path: ${{ env.REPO_NAME }}/out/Debug/Telegator-macos.zip
+          name: Telegator-macos-${{ github.sha }}
+          path: installer/Telegator-macos-${{ github.sha }}.7z
           retention-days: 14
