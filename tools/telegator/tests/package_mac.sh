@@ -86,11 +86,19 @@ JSON
 run_package >"$work/valid.out" 2>&1
 cmp -s "$work/config.json" "$work/embedded.json"
 [[ -f "$work/dist/Telegator-9.8.7-0123456.dmg" ]]
+
+cat >"$work/config.json" <<'JSON'
+{"panel":{"url":"https://panel.example/path","accounts":[9223372036854775807]}}
+JSON
+run_package >"$work/int64-max.out" 2>&1
+cmp -s "$work/config.json" "$work/embedded.json"
+[[ -f "$work/dist/Telegator-9.8.7-0123456.dmg" ]]
+
 full_sha=0123456789abcdef0123456789abcdef01234567
 run_package "$full_sha" >"$work/full-sha.out" 2>&1
 [[ -f "$work/dist/Telegator-9.8.7-$full_sha.dmg" ]]
 
-for fixture in journal extra-field wrong-root wrong-panel wrong-url wrong-accounts account-wrong-type account-zero account-fraction; do
+for fixture in journal extra-field wrong-root wrong-panel wrong-url wrong-accounts account-wrong-type account-zero account-fraction account-over-int64; do
     case $fixture in
         journal) json='{"panel":{"url":"https://panel.invalid/secret","accounts":[7]},"journal":{"key":"DO_NOT_PRINT_SECRET"}}' ;;
         extra-field) json='{"panel":{"url":"https://panel.invalid/secret","accounts":[7],"extra":"DO_NOT_PRINT_SECRET"}}' ;;
@@ -101,6 +109,7 @@ for fixture in journal extra-field wrong-root wrong-panel wrong-url wrong-accoun
         account-wrong-type) json='{"panel":{"url":"https://panel.invalid/secret","accounts":["DO_NOT_PRINT_SECRET"]}}' ;;
         account-zero) json='{"panel":{"url":"https://panel.invalid/secret","accounts":[0]}}' ;;
         account-fraction) json='{"panel":{"url":"https://panel.invalid/secret","accounts":[1.5]}}' ;;
+        account-over-int64) json='{"panel":{"url":"https://panel.invalid/secret","accounts":[9223372036854775808]}}' ;;
     esac
     printf '%s\n' "$json" >"$work/config.json"
     if run_package >"$work/rejected.out" 2>&1; then

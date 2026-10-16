@@ -62,7 +62,7 @@ for account in accounts:
             reject()
     elif account <= 0:
         reject()
-    if account > 18446744073709551615:
+    if account > 9223372036854775807:
         reject()
 PY
 
