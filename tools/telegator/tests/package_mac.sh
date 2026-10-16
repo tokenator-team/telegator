@@ -8,7 +8,9 @@ trap 'rm -rf "$work"' EXIT
 
 real_python=$(command -v python3)
 mkdir -p "$work/bin" "$work/app/Contents/MacOS" \
-    "$work/app/Contents/Resources" "$work/venv/bin"
+    "$work/app/Contents/Resources" "$work/venv/bin" \
+    "$work/home/Projects/telegator-wt/.package-venv/bin" \
+    "$work/home/Projects/telegator-wt/dist"
 touch "$work/app/Contents/MacOS/Telegator"
 printf 'valid fixture\n' >"$work/config.json"
 printf 'not used\n' >"$work/app/Contents/Resources/telegator.json"
@@ -58,11 +60,15 @@ MOCK
 for mock in "$work"/bin/* "$work"/venv/bin/*; do
     chmod +x "$mock"
 done
+cp "$work/venv/bin/python" "$work/home/Projects/telegator-wt/.package-venv/bin/python"
+cp "$work/venv/bin/dmgbuild" "$work/home/Projects/telegator-wt/.package-venv/bin/dmgbuild"
 touch "$work/dist-placeholder"
 mkdir -p "$work/dist"
 
 run_package() {
+    cp "$work/config.json" "$work/home/Projects/telegator-wt/package.json"
     PATH="$work/bin:$PATH" \
+    HOME="$work/home" \
     REAL_PYTHON="$real_python" \
     TELEGATOR_ROOT="$work/root" \
     TELEGATOR_CONFIG="$work/config.json" \
