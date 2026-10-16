@@ -13,28 +13,66 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
-root=~/Projects/telegator-wt
+root=${TELEGATOR_ROOT:-$HOME/Projects/telegator-wt}
 app=${1:-$root/dev/out/Release/Telegator.app}
-config=$root/package.json
-venv=$root/.package-venv
-dist=$root/dist
+config=${TELEGATOR_CONFIG:-$root/package.json}
+venv=${TELEGATOR_VENV:-$root/.package-venv}
+dist=${TELEGATOR_DIST:-$root/dist}
+python=${TELEGATOR_PYTHON:-/opt/homebrew/bin/python3.12}
 
 [ -d "$app" ] || { echo "Нет сборки: $app" >&2; exit 1; }
 [ -f "$config" ] || { echo "Нет настроек панели: $config" >&2; exit 1; }
-/usr/bin/python3 - "$config" <<'PY'
-import json, sys
-data = json.load(open(sys.argv[1]))
-if set(data) != {"panel"} or not data["panel"].get("url") or not data["panel"].get("accounts"):
-    sys.exit("package.json: нужен только раздел panel с url и accounts")
+"$python" - "$config" <<'PY'
+import json
+import math
+import sys
+
+def reject():
+    sys.exit("package.json: invalid panel configuration")
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as stream:
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    reject()
+                result[key] = value
+            return result
+
+        data = json.load(stream, object_pairs_hook=unique_object)
+except (OSError, UnicodeError, json.JSONDecodeError):
+    reject()
+
+if not isinstance(data, dict) or set(data) != {"panel"}:
+    reject()
+panel = data["panel"]
+if not isinstance(panel, dict) or set(panel) != {"url", "accounts"}:
+    reject()
+if not isinstance(panel["url"], str) or not panel["url"].strip():
+    reject()
+accounts = panel["accounts"]
+if not isinstance(accounts, list) or not accounts:
+    reject()
+for account in accounts:
+    if isinstance(account, bool) or not isinstance(account, (int, float)):
+        reject()
+    if isinstance(account, float):
+        if not math.isfinite(account) or not account.is_integer() or account <= 0:
+            reject()
+    elif account <= 0:
+        reject()
+    if account > 18446744073709551615:
+        reject()
 PY
 
 if [ ! -x "$venv/bin/dmgbuild" ]; then
-	/opt/homebrew/bin/python3.12 -m venv "$venv"
+	"$python" -m venv "$venv"
 	"$venv/bin/pip" -q install dmgbuild Pillow
 fi
 
 version=$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")
-commit=$(git -C "$(dirname "$app")/../.." rev-parse --short HEAD 2>/dev/null || echo local)
+commit=${TELEGATOR_COMMIT:-$(git -C "$(dirname "$app")/../.." rev-parse --short HEAD 2>/dev/null || echo local)}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 

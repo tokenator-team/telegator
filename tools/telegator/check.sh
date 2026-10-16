@@ -3,10 +3,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-for script in tools/telegator/*.sh; do
+if ! command -v shellcheck >/dev/null 2>&1; then
+    printf 'ERROR: ShellCheck is required to check Telegator shell scripts.\n' >&2
+    exit 1
+fi
+
+while IFS= read -r -d '' script; do
     bash -n "$script"
     printf 'OK bash: %s\n' "$script"
-done
+    shellcheck "$script"
+    printf 'OK ShellCheck: %s\n' "$script"
+done < <(find tools/telegator -type f -name '*.sh' -print0)
+
+bash tools/telegator/tests/package_mac.sh
 
 workflows=(.github/workflows/telegator-*.yml)
 if command -v python3 >/dev/null && python3 -c 'import yaml' 2>/dev/null; then
