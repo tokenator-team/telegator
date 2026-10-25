@@ -23,6 +23,10 @@ PRIVATE
     telegator/telegator_mono_copy.h
     telegator/telegator_panel.cpp
     telegator/telegator_panel.h
+    telegator/telegator_panel_bridge.cpp
+    telegator/telegator_panel_bridge.h
+    telegator/telegator_panel_state.cpp
+    telegator/telegator_panel_state.h
     telegator/telegator_quick_replies.cpp
     telegator/telegator_quick_replies.h
     telegator/telegator_requisites.cpp

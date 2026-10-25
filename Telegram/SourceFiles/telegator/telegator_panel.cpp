@@ -7,20 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "telegator/telegator_panel.h"
 
 #include "core/file_utilities.h"
-#include "core/version.h"
 #include "data/data_media_types.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_item_components.h"
 #include "history/history_widget.h"
 #include "main/main_session.h"
 #include "settings.h"
 #include "telegator/telegator_config.h"
 #include "telegator/telegator_field.h"
 #include "telegator/telegator_journal.h"
+#include "telegator/telegator_panel_bridge.h"
+#include "telegator/telegator_panel_state.h"
 #include "telegator/telegator_requisites.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/rp_widget.h"
@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
 
-#include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QUrl>
@@ -47,14 +46,6 @@ namespace {
 constexpr auto kPanelWidth = 360;
 constexpr auto kPanelMinWidth = 240;
 constexpr auto kResizeArea = 6;
-constexpr auto kBridgeVersion = 1;
-constexpr auto kMenuLimit = 10;
-constexpr auto kMenuTextLimit = 64;
-
-struct MenuItem {
-	QString id;
-	QString label;
-};
 
 [[nodiscard]] rpl::variable<bool> &Shown(
 		not_null<Window::SessionController*> controller) {
@@ -83,86 +74,6 @@ struct MenuItem {
 	return result;
 }
 
-[[nodiscard]] QString StatePath() {
-	return cWorkingDir() + u"tdata/telegator_state.json"_q;
-}
-
-[[nodiscard]] QJsonObject &State() {
-	static auto result = [] {
-		auto file = QFile(StatePath());
-		return file.open(QIODevice::ReadOnly)
-			? QJsonDocument::fromJson(file.readAll()).object()
-			: QJsonObject();
-	}();
-	return result;
-}
-
-void SaveState(const QString &key, const QJsonValue &value) {
-	auto &state = State();
-	if (state.value(key) == value) {
-		return;
-	}
-	state.insert(key, value);
-	auto file = QFile(StatePath());
-	if (file.open(QIODevice::WriteOnly)) {
-		file.write(QJsonDocument(state).toJson(QJsonDocument::Compact));
-	}
-}
-
-// Panel width set by dragging its left edge, kept between launches.
-[[nodiscard]] int ReadSavedWidth() {
-	return State().value(u"panel_width"_q).toInt();
-}
-
-void SaveWidth(int width) {
-	SaveState(u"panel_width"_q, width);
-}
-
-[[nodiscard]] QString AccountKey(not_null<Main::Session*> session) {
-	return QString::number(session->userId().bare);
-}
-
-[[nodiscard]] std::vector<MenuItem> ParseMenu(const QJsonArray &items) {
-	auto result = std::vector<MenuItem>();
-	for (const auto &value : items) {
-		const auto object = value.toObject();
-		const auto id = object.value(u"id"_q).toString().trimmed();
-		const auto label = object.value(u"label"_q).toString().trimmed();
-		if (id.isEmpty()
-			|| label.isEmpty()
-			|| id.size() > kMenuTextLimit
-			|| label.size() > kMenuTextLimit) {
-			continue;
-		}
-		result.push_back({ .id = id, .label = label });
-		if (result.size() == kMenuLimit) {
-			break;
-		}
-	}
-	return result;
-}
-
-[[nodiscard]] std::vector<MenuItem> SavedMenu(
-		not_null<Main::Session*> session) {
-	const auto menu = State().value(u"menu"_q).toObject();
-	return ParseMenu(menu.value(AccountKey(session)).toArray());
-}
-
-void SaveMenu(
-		not_null<Main::Session*> session,
-		const std::vector<MenuItem> &items) {
-	auto list = QJsonArray();
-	for (const auto &item : items) {
-		auto object = QJsonObject();
-		object.insert(u"id"_q, item.id);
-		object.insert(u"label"_q, item.label);
-		list.push_back(object);
-	}
-	auto menu = State().value(u"menu"_q).toObject();
-	menu.insert(AccountKey(session), list);
-	SaveState(u"menu"_q, menu);
-}
-
 [[nodiscard]] Webview::StorageId PanelStorageId() {
 	const auto path = cWorkingDir() + u"tdata/telegator-webview"_q;
 	auto file = QFile(path + u".token"_q);
@@ -180,124 +91,6 @@ void SaveMenu(
 	return { .path = path, .token = token };
 }
 
-// WHY: the page lives on the owner's server and changes without a client
-// update, so the page API is a versioned contract kept in the ROADMAP.
-[[nodiscard]] QByteArray BridgeScript() {
-	return QByteArray(R"JS(
-window.Telegator = {
-	version: { app: '%APP%', bridge: %BRIDGE% },
-	chat: null,
-	onchat: null,
-	theme: null,
-	ontheme: null,
-	onmenu: null,
-	send: function (message) {
-		if (window.external && window.external.invoke) {
-			window.external.invoke(JSON.stringify(message));
-		}
-	},
-	insertText: function (text, chatKey) {
-		if (!chatKey) {
-			console.warn('Telegator.insertText needs chat.peer.key');
-			return;
-		}
-		this.send({
-			event: 'insert_text',
-			text: String(text),
-			chat: String(chatKey)
-		});
-	},
-	setMenu: function (items) {
-		if (!Array.isArray(items)) {
-			console.warn('Telegator.setMenu needs [{ id, label }]');
-			return;
-		}
-		this.send({
-			event: 'set_menu',
-			items: items.map(function (item) {
-				return {
-					id: (item && item.id != null) ? String(item.id) : '',
-					label: (item && item.label != null) ? String(item.label) : ''
-				};
-			})
-		});
-	},
-	open: function () {
-		this.send({ event: 'open' });
-	},
-	setOperator: function (name) {
-		this.send({
-			event: 'operator',
-			name: (name != null) ? String(name) : ''
-		});
-	},
-	_set: function (field, callback, value) {
-		this[field] = value;
-		this._fire(callback, value);
-	},
-	_fire: function (callback, value) {
-		if (typeof this[callback] === 'function') {
-			this[callback](value);
-		}
-	}
-};
-document.addEventListener('DOMContentLoaded', function () {
-	window.Telegator.send({ event: 'ready' });
-});
-)JS").replace("%APP%", AppVersionStr).replace(
-		"%BRIDGE%",
-		QByteArray::number(kBridgeVersion));
-}
-
-[[nodiscard]] QString CssColor(const style::color &color) {
-	const auto c = color->c;
-	return u"rgba(%1,%2,%3,%4)"_q
-		.arg(c.red())
-		.arg(c.green())
-		.arg(c.blue())
-		.arg(c.alphaF());
-}
-
-[[nodiscard]] QJsonObject ThemeObject() {
-	auto result = QJsonObject();
-	result.insert(u"bg"_q, CssColor(st::windowBg));
-	result.insert(u"fg"_q, CssColor(st::windowFg));
-	result.insert(u"sub"_q, CssColor(st::windowSubTextFg));
-	result.insert(u"over"_q, CssColor(st::windowBgOver));
-	result.insert(u"accent"_q, CssColor(st::windowBgActive));
-	result.insert(u"accent-fg"_q, CssColor(st::windowFgActive));
-	return result;
-}
-
-[[nodiscard]] QJsonObject ChatObject(
-		not_null<Main::Session*> session,
-		PeerData *peer) {
-	auto result = QJsonObject();
-	result.insert(u"account_id"_q, AccountKey(session));
-	if (!peer) {
-		return result;
-	}
-	const auto id = peer->id;
-	const auto type = peer->isUser()
-		? u"user"_q
-		: peer->isChat()
-		? u"chat"_q
-		: u"channel"_q;
-	const auto bare = peer->isUser()
-		? peerToUser(id).bare
-		: peer->isChat()
-		? peerToChat(id).bare
-		: peerToChannel(id).bare;
-	auto chat = QJsonObject();
-	chat.insert(u"key"_q, QString::number(id.value));
-	chat.insert(u"type"_q, type);
-	chat.insert(u"id"_q, QString::number(bare));
-	chat.insert(u"name"_q, peer->name());
-	chat.insert(u"username"_q, peer->username());
-	result.insert(u"peer"_q, chat);
-	return result;
-}
-
 // Self-destructing content never leaves the app.
 [[nodiscard]] bool MenuAllowed(not_null<HistoryItem*> item) {
 	const auto media = item->media();
@@ -306,18 +99,6 @@ document.addEventListener('DOMContentLoaded', function () {
 		&& !(media && media->ttlSeconds())
 		&& !item->originalText().text.isEmpty()
 		&& !item->history()->isForum();
-}
-
-[[nodiscard]] QJsonObject MessageObject(not_null<HistoryItem*> item) {
-	auto result = QJsonObject();
-	result.insert(u"id"_q, QString::number(item->id.bare));
-	result.insert(u"text"_q, item->originalText().text);
-	result.insert(
-		u"out"_q,
-		item->out() || item->history()->peer->isSelf());
-	result.insert(u"forwarded"_q, item->Has<HistoryMessageForwarded>());
-	result.insert(u"date"_q, item->date());
-	return result;
 }
 
 void ChooseMenu(
@@ -345,8 +126,8 @@ void ChooseMenu(
 		details);
 	auto event = QJsonObject();
 	event.insert(u"item"_q, id);
-	event.insert(u"chat"_q, ChatObject(&controller->session(), peer));
-	event.insert(u"message"_q, MessageObject(item));
+	event.insert(u"chat"_q, BridgeChat(&controller->session(), peer));
+	event.insert(u"message"_q, BridgeMessage(item));
 	i->second->chooseMenu(
 		QJsonDocument(event).toJson(QJsonDocument::Compact));
 }
@@ -517,7 +298,7 @@ SidePanel::SidePanel(
 	}
 	Panels().remove(controller);
 	Panels().emplace(controller, this);
-	_width = ReadSavedWidth();
+	_width = SavedPanelWidth();
 	if (_width <= 0) {
 		_width = style::ConvertScale(kPanelWidth);
 	}
@@ -539,12 +320,12 @@ SidePanel::SidePanel(
 				createWebview();
 			}
 		}
-		SaveState(u"panel_shown"_q, shown);
+		SavePanelShown(shown);
 		_relayout();
 	}, _body->lifetime());
 
 	// Shown as it was left: the main widget is still being constructed.
-	if (State().value(u"panel_shown"_q).toBool()) {
+	if (SavedPanelShown()) {
 		crl::on_main(_body.get(), [=] {
 			Shown(controller) = true;
 		});
@@ -679,7 +460,7 @@ void SidePanel::setupResize() {
 			_relayout();
 		} else {
 			drag->fromX = std::nullopt;
-			SaveWidth(_width);
+			SavePanelWidth(_width);
 		}
 	}, handle->lifetime());
 	handle->show();
@@ -799,7 +580,7 @@ void SidePanel::eval(const QByteArray &script) {
 }
 
 void SidePanel::sendChat() {
-	const auto json = QJsonDocument(ChatObject(
+	const auto json = QJsonDocument(BridgeChat(
 		&_controller->session(),
 		_controller->activeChatCurrent().peer())).toJson(
 			QJsonDocument::Compact);
@@ -808,7 +589,7 @@ void SidePanel::sendChat() {
 }
 
 void SidePanel::sendTheme() {
-	const auto json = QJsonDocument(ThemeObject()).toJson(
+	const auto json = QJsonDocument(BridgeTheme()).toJson(
 		QJsonDocument::Compact);
 	eval("window.Telegator && window.Telegator._set("
 		"'theme', 'ontheme', " + json + ");");
