@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QJsonObject>
 
-#include "telegator/telegator_journal_mtp.h"
-
 class PeerData;
 
 namespace Main {
@@ -29,14 +27,21 @@ void JournalDelete(
 	const MessageIdsList &ids,
 	bool revoke);
 
-// Actions inside Telegator itself: the panel page, its menu items.
-void JournalPanel(
+// One record: who (the account and the operator of its panel), what, where.
+// The text is cut to a limit. Actions inside Telegator itself (the panel
+// page, its menu items) and requests to Telegram are written the same way.
+void JournalWrite(
 	not_null<Main::Session*> session,
 	const QString &action,
 	PeerData *peer,
 	MsgId msgId,
 	const QString &text,
 	QJsonObject details = {});
+
+[[nodiscard]] QString JournalShort(QString text);
+
+// The chat of a record: id, type, name, username, bot or not.
+[[nodiscard]] QJsonObject JournalChat(PeerData *peer);
 
 // Who is signed in the panel page of this account, empty when nobody.
 void JournalSetOperator(

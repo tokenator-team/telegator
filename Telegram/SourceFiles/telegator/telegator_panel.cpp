@@ -336,7 +336,7 @@ void ChooseMenu(
 	}
 	auto details = QJsonObject();
 	details.insert(u"item"_q, id);
-	JournalPanel(
+	JournalWrite(
 		&controller->session(),
 		u"panel_menu"_q,
 		peer,
@@ -770,7 +770,7 @@ void SidePanel::handleMessage(const QJsonDocument &message) {
 		}
 		const auto text = object.value(u"text"_q).toString();
 		if (!text.isEmpty()) {
-			JournalPanel(
+			JournalWrite(
 				&_controller->session(),
 				u"panel_insert"_q,
 				peer,
