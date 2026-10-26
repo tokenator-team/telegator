@@ -1,19 +1,65 @@
 # Agent Guide for Telegator (Telegram Desktop fork)
 
-Repository-wide rules for coding agents. Fork-specific rules live in
-`TELEGATOR.md`: read it first; it takes precedence over this file.
+Required reading is this file only. The Telegator section is the owner's fork
+rules and wins over the condensed upstream Telegram Desktop rules after it.
+`TELEGATOR.md` is a reference read on demand (pointers below).
 
-## Telegator fork routing
+## Telegator
 
-Ordinary requests follow `TELEGATOR.md` and `docs/telegator/ROADMAP.md`.
-The upstream `ai-tdesktop` queue and its skills (`perform-task`, `continue`,
-`process-inbox`) apply only when explicitly requested: requiring its missing
-sibling for ordinary fork work sends agents into an unrelated pipeline.
+Форк `telegramdesktop/tdesktop` для внутреннего использования (macOS + Windows):
+кнопки действий в окне чата и фичи, которых нет в официальном клиенте. Владелец —
+не программист: пиши ему коротко, по-русски, технические решения принимай сам.
+Цели, решения, очередь фич — `docs/telegator/ROADMAP.md`. Наш код —
+`Telegram/SourceFiles/telegator/`; GitHub (публичный) — `tokenator-team/telegator`,
+`main`; Telegram — remote `upstream`, ветка `dev`, теги `vX.Y.Z`.
+
+- Обычная просьба — задача Telegator по этому файлу и ROADMAP; соседнюю очередь
+  `ai-tdesktop` не ищи и не требуй. Её навыки (`perform-task`, `continue`,
+  `process-inbox`) — только по явной просьбе с названной задачей upstream или
+  этим workflow; тогда сохраняй его записи, проверки безопасности и полный review.
+  Обычной правке — проверки и review по риску, но правила сборки, платформы,
+  установки, денег, доступа и concurrency сохраняются.
+- Модульность — каждая правка файла Telegram есть будущий конфликт: логика,
+  строки, стили, состояние — только в `Telegram/SourceFiles/telegator/`; в файлах
+  Telegram — точка вызова в 1–3 строки с комментарием `// Telegator` (найти все:
+  `grep -rn "// Telegator" Telegram/SourceFiles`); новые исходники — в
+  `Telegram/cmake/telegator.cmake`, не в `Telegram/CMakeLists.txt`; вставляйся в
+  центральную функцию (все исходящие звонки — `Calls::Instance::startOutgoingCall`),
+  а не в каждую кнопку; из чужого форка (AyuGram и др.) бери нужное, отвязывай от
+  их настроек, источник — в шапке файла (GPLv3). Унаследованные workflow Telegram
+  отключены: не включай и не удаляй их файлы.
+- Нельзя: коммитить api_id/api_hash и любые секреты; класть в репозиторий
+  бизнес-специфику владельца — адреса серверов, названия действий, ключи (кнопки —
+  универсальный механизм, конкретика — в локальном конфиге); сохранять контент с
+  таймером самоуничтожения (п. 1.4 условий Telegram API, даже если так делает чужой
+  форк); выполнять рабочие действия в клиенте — кнопка сообщает серверу владельца
+  «нажали X в чате Y», решает и исполняет сервер. Исключение — «Реквизиты»
+  (владелец 23.09.2026): оформление, справочник банков, отправка и закреп — в клиенте.
+- Проверка без сборки — `make check` (§Быстрые проверки). Сборка — в `~/Projects/telegator-wt/dev`,
+  Debug, только `nice -n 10` и `--parallel 4` (иначе Mac на 16 ГБ зависает);
+  ключи API не печатать (их выводит configure).
+- У владельца одна копия — `/Applications/Telegator.app`, ставит её только
+  `tools/telegator/install_mac.sh`; копий в `builds/`, на рабочем столе, в `/tmp`
+  не делать (владелец 25.09.2026). Свою Debug запускай, закрыв установленную, после
+  проверки обязательно `install_mac.sh --restore`. Сообщения проверяй в
+  «Избранном», не на живых собеседниках.
+- В `main` — только `python3 ~/Projects/tokenator/scripts/merge.py telegator
+  <ветка>`, без прямого коммита и push; сборку форка ворота не проверяют — проверь
+  сам. `main` на GitHub не переписывать без явного согласия владельца. В git
+  добавляй конкретные файлы; после слияния удали ветку локально и на GitHub.
+- Сделанное — в «Сделано» ROADMAP; пометки `TEST-BUTTON-POC` и `// Telegator` не
+  оставляй мёртвыми. Временные клоны и логи — в `/tmp`, удалить в конце задачи.
+
+По нужде — `TELEGATOR.md`: библиотеки, configure, Release, облачная сборка
+(§Сборка); папка данных, запуск, `-workdir` (§Запуск); dmg и Windows для
+сотрудников (§Раздача); rebase на новый Telegram и конфликт в этом файле
+(§Обновление с Telegram); «Реквизиты»; журнал действий; найдена старая сборка
+с `tdata/` или `workdir/`, нет кеша Actions (§Гигиена).
 
 ## Where the full upstream text is
 
 This file keeps the upstream Telegram Desktop rules every task needs, condensed
-(updating it on upstream rebases: `TELEGATOR.md` §Обновление с Telegram).
+(updating it on rebases: `TELEGATOR.md` §Обновление с Telegram).
 Examples and situational procedures stay in the upstream original, referred to
 below as "upstream §Section":
 
@@ -25,30 +71,25 @@ Mechanical style rules with examples: `REVIEW.md`.
 
 ## Situational pointers
 
-- Explicitly requested upstream queue work: upstream §AI Tasks (listing, urgency
-  ranking, this checkout's tag for claimed work), then the skill.
-  "Task" there means a record in `../ai-tdesktop`. Browsing is read-only (never
-  edits `state.yaml` or starts work); act only through the skills, not by
-  hand; do not run `python3 ai.py`; never take
-  over work claimed by another checkout without explicit human reassignment;
-  never guess between similarly named tasks — list full ids, let the user pick.
+- Requested upstream queue work: upstream §AI Tasks (listing, urgency ranking,
+  this checkout's tag), then the skill. Browsing is read-only; act only through
+  the skills; no `python3 ai.py`; never take over another checkout's claimed
+  work without human reassignment; never guess between similar task ids. A
+  task-owned commit is three lines: subject, blank, `Task: <task-id>` (no
+  rationale; no commit hashes in task artifacts).
 - Codex on Windows over `\\wsl.localhost`: upstream §Working from Codex on
-  Windows + WSL. Use WSL Git and tools; retry a command that misbehaves from the
-  UNC directory through `wsl.exe -d <distro> --cd <linux path> --` before calling
-  it broken; never change global `safe.directory`
-  unless asked, never run native Windows `cmake --build out` against a
-  Linux/Docker tree, and do not start a Docker build unless the user asked.
-- Platform toolchains and versions: `docs/building-*.md` (current; e.g.
-  Visual Studio 2026 in `docs/building-win.md`, not upstream's older 2022).
-  Build layout, Native Tools prompts, "Libraries not found": upstream §Build
-  System Structure through §Troubleshooting.
-  The fork's own build, install and packaging: `TELEGATOR.md`.
+  Windows + WSL. Use WSL Git and tools; retry an odd UNC-directory command via
+  `wsl.exe -d <distro> --cd <linux path> --` before calling it broken; never
+  change global `safe.directory` unless asked or run Windows `cmake --build out`
+  on a Linux/Docker tree; no Docker build unless the user asked.
+- Toolchains: `docs/building-*.md` (current: Visual Studio 2026, not upstream's
+  2022). Build layout, Native Tools prompts, "Libraries not found": upstream
+  §Build System Structure to §Troubleshooting.
 - macOS Debug log stops right after `Lang Info: Loaded cached, keys: ...` and a
   fresh `Telegram-*.ips` shows `SIGABRT` in `Lang::Instance::applyValue()` /
-  `Local::readLangPack()` (stale objects after regenerated `lang.strings`):
-  after two identical failures follow upstream §macOS crashes while reading
-  the cached language pack — no code, overlay or account changes; back up the
-  portable folders outside `out/`; one clean Debug rebuild; never loop.
+  `Local::readLangPack()`, twice: upstream §macOS crashes while reading the
+  cached language pack — change no code/overlay/account, back up portable
+  folders outside `out/`, one clean Debug rebuild, never loop.
 - Build-output lock errors (PDB, EXE, OBJ): inside the autonomous `continue` /
   `perform-task` workflow follow `.agents/shared/build-lock-recovery.md`.
   Otherwise the checkout executable may be running because the user is testing
@@ -104,10 +145,6 @@ rewrite them to CRLF. When normalizing, change nothing else and add no BOM.
   anywhere. The prefix marks scope, never authorship.
 - Never add `Co-Authored-By:` or any tool/assistant trailer, `Autotask:`,
   attempt or other run markers.
-- A commit owned by an `ai-tdesktop` task is exactly three lines: subject,
-  blank line, `Task: <task-id>`. No rationale in the message; a short durable
-  note goes to `tasks/<task-id>.md` only when useful; no commit hashes there or
-  in any task artifact.
 
 ## Local Storage Serialization
 
@@ -142,12 +179,9 @@ the KV prefs `writePref<Type>` / `readPref<Type>` instead.
 - All-other-platform GLib/GObject/GIO code uses cppgir `gi::repository`
   wrappers; raw `g_*` only where cppgir lacks the feature or at a narrow
   interop boundary.
-- A D-Bus interface known at build time gets typed bindings from introspection
-  XML via `generate_dbus(target interface_prefix namespace xml)` in
-  `cmake/external/glib/generate_dbus.cmake` (inside the all-other branch; use
-  `gi::repository::<namespace>`, never edit or list files under `gen`); see
-  upstream §Coding Style. Generic GDBus calls only for genuinely dynamic
-  interfaces.
+- A D-Bus interface known at build time: typed bindings via `generate_dbus` from
+  `cmake/external/glib/generate_dbus.cmake` (upstream §Coding Style); generic
+  GDBus calls only for genuinely dynamic interfaces.
 
 ## API Usage
 
@@ -155,7 +189,6 @@ Schemas: `Telegram/SourceFiles/mtproto/scheme/api.tl` (Telegram API, the source
 for method signatures and return types) and `mtproto.tl` (protocol). Request
 pattern with examples: upstream §Making API Requests.
 
-- `api().request(MTP...(MTP_flags, MTP_string, ...)).done(...).fail(...).send()`.
 - Several constructors: `.match(...)`, or `.type() == mtpc_x` then
   `.c_x()`; a single constructor: `.data()`.
 - `.handleFloodErrors()` before `.send()` only in rare special flood handling.
@@ -165,10 +198,9 @@ pattern with examples: upstream §Making API Requests.
   creator: capturing a widget, box, controller or other shorter-lived state is
   a use-after-free. Plain values and session-owned objects are fine; otherwise:
   1. `crl::guard(this, ...)` — request always sent, handler skipped when the
-     guard is dead; use when the server must see the request. Guards: raw or
-     `not_null` pointer to a `QObject` or `base::has_weak_ptr` type,
-     `QPointer`, `QWeakPointer`, `QSharedPointer`, `base::weak_ptr`,
-     `base::weak_qptr`, `std::weak_ptr`, `std::shared_ptr`, `base::binary_guard`.
+     guard is dead; use when the server must see the request. Guards (`this`
+     of a `QObject` or `base::has_weak_ptr`, weak/shared pointers): upstream
+     §API Request Callback Lifetime.
   2. Keep the `mtpRequestId`; `api().request(base::take(_requestId)).cancel()`
      when irrelevant and in the destructor. The request may never be sent.
   3. Own an `MTP::Sender` (`_api(&session->mtp())`): its destructor cancels its
@@ -200,12 +232,7 @@ keys). Examples: upstream §Localization.
 
 ## RPL
 
-Examples: upstream §RPL.
-
-- `std::move` producers when starting pipelines; pass an `rpl::lifetime` to
-  `rpl::on_next` / `on_error` / `on_done` / `on_next_error_done`, or store the
-  returned lifetime.
-- `rpl::duplicate(producer)` to reuse a producer; `rpl::combine` (latest
-  values, unpacked into lambda arguments in `map`, `filter`, `on_next`);
-  `rpl::merge` for producers of one type.
-- `rpl::producer<Type, Error = rpl::no_error>`.
+Examples: upstream §RPL. `std::move` producers when starting pipelines; pass an
+`rpl::lifetime` to `rpl::on_next` / `on_error` / `on_done` /
+`on_next_error_done` or store the returned one; `rpl::duplicate` to reuse a
+producer; `rpl::combine` unpacks latest values into lambda arguments.

@@ -7,7 +7,7 @@ description: In the Telegator fork, apply only to explicitly requested upstream 
 
 In the Telegator fork, this workflow is reserved for an explicitly named
 upstream `ai-tdesktop` task or an explicit request to run the upstream task
-pipeline. Ordinary Telegator work follows `TELEGATOR.md` and its ROADMAP/direct
+pipeline. Ordinary Telegator work follows the Telegator section of `AGENTS.md`, ROADMAP and direct
 workflow; do not require a missing sibling or select its queue implicitly.
 
 When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely

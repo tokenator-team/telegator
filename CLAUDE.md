@@ -4,4 +4,4 @@ Read `AGENTS.md` and treat it as the canonical repository-wide instructions.
 
 # Telegator fork
 
-Before anything else, read `TELEGATOR.md`: fork-specific rules that take precedence over `AGENTS.md`.
+Fork rules are in `AGENTS.md`; read `TELEGATOR.md` only when `AGENTS.md` points there.

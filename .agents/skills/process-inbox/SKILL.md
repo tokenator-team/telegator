@@ -7,7 +7,7 @@ description: In the Telegator fork, apply only to explicitly requested upstream 
 
 In the Telegator fork, use this skill only when the owner explicitly asks to
 route the upstream `ai-tdesktop` inbox. Ordinary Telegator requests use
-`TELEGATOR.md` and its ROADMAP/direct workflow; do not require or create an
+the Telegator section of `AGENTS.md`, ROADMAP and direct workflow; do not require or create an
 upstream inbox or sibling queue implicitly.
 
 When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely
