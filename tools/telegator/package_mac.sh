@@ -29,7 +29,7 @@ if set(data) != {"panel"} or not data["panel"].get("url") or not data["panel"].g
 PY
 
 if [ ! -x "$venv/bin/dmgbuild" ]; then
-	/opt/homebrew/bin/python3.12 -m venv "$venv"
+	/opt/homebrew/bin/python3 -m venv "$venv"
 	"$venv/bin/pip" -q install dmgbuild Pillow
 fi
 
