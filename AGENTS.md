@@ -9,11 +9,11 @@ rules and wins over the condensed upstream Telegram Desktop rules after it.
 Форк `telegramdesktop/tdesktop` для внутреннего использования (macOS + Windows):
 кнопки действий в окне чата и фичи, которых нет в официальном клиенте. Владелец —
 не программист: пиши ему коротко, по-русски, технические решения принимай сам.
-Цели, решения, очередь фич — `docs/telegator/ROADMAP.md`. Наш код —
+Цели и принятые решения — `TELEGATOR.md`. Наш код —
 `Telegram/SourceFiles/telegator/`; GitHub (публичный) — `tokenator-team/telegator`,
 `main`; Telegram — remote `upstream`, ветка `dev`, теги `vX.Y.Z`.
 
-- Обычная просьба — задача Telegator по этому файлу и ROADMAP; соседнюю очередь
+- Обычная просьба — задача Telegator по этому файлу и `TELEGATOR.md`; соседнюю очередь
   `ai-tdesktop` не ищи и не требуй. Её навыки (`perform-task`, `continue`,
   `process-inbox`) — только по явной просьбе с названной задачей upstream или
   этим workflow; тогда сохраняй его записи, проверки безопасности и полный review.
@@ -35,7 +35,7 @@ rules and wins over the condensed upstream Telegram Desktop rules after it.
   форк); выполнять рабочие действия в клиенте — кнопка сообщает серверу владельца
   «нажали X в чате Y», решает и исполняет сервер. Исключение — «Реквизиты»
   (владелец 23.09.2026): оформление, справочник банков, отправка и закреп — в клиенте.
-- Проверка без сборки — `make check` (§Быстрые проверки). Сборка — в `~/Projects/telegator-wt/dev`,
+- Проверка без сборки — `make check`. Сборка — в `~/Projects/telegator-wt/dev`,
   Debug, только `nice -n 10` и `--parallel 4` (иначе Mac на 16 ГБ зависает);
   ключи API не печатать (их выводит configure).
 - У владельца одна копия — `/Applications/Telegator.app`, ставит её только
@@ -47,13 +47,13 @@ rules and wins over the condensed upstream Telegram Desktop rules after it.
   <ветка>`, без прямого коммита и push; сборку форка ворота не проверяют — проверь
   сам. `main` на GitHub не переписывать без явного согласия владельца. В git
   добавляй конкретные файлы; после слияния удали ветку локально и на GitHub.
-- Сделанное — в «Сделано» ROADMAP; пометки `TEST-BUTTON-POC` и `// Telegator` не
+- Пометки `TEST-BUTTON-POC` и `// Telegator` не
   оставляй мёртвыми. Временные клоны и логи — в `/tmp`, удалить в конце задачи.
 
 По нужде — `TELEGATOR.md`: библиотеки, configure, Release, облачная сборка
 (§Сборка); папка данных, запуск, `-workdir` (§Запуск); dmg и Windows для
 сотрудников (§Раздача); rebase на новый Telegram и конфликт в этом файле
-(§Обновление с Telegram); «Реквизиты»; журнал действий; найдена старая сборка
+(§Обновление с Telegram); «Реквизиты»; найдена старая сборка
 с `tdata/` или `workdir/`, нет кеша Actions (§Гигиена).
 
 ## Where the full upstream text is

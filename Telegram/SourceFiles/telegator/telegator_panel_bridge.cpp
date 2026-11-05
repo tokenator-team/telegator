@@ -34,7 +34,8 @@ constexpr auto kBridgeVersion = 1;
 } // namespace
 
 // WHY: the page lives on the owner's server and changes without a client
-// update, so the page API is a versioned contract kept in the ROADMAP.
+// update, so the page API is a versioned contract: any change to it
+// takes a new bridge number (see TELEGATOR.md).
 QByteArray BridgeScript() {
 	return QByteArray(R"JS(
 window.Telegator = {
