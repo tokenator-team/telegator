@@ -18,6 +18,8 @@ class SessionController;
 
 namespace Telegator {
 
+[[nodiscard]] bool CanSend(not_null<HistoryItem*> item);
+
 void AddRequisitesAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<Window::SessionController*> controller,

@@ -46,15 +46,6 @@ struct Prepared {
 	QString title;
 };
 
-// Self-destructing content never leaves the app.
-[[nodiscard]] bool CanSend(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	return !item->isService()
-		&& !item->isEphemeral()
-		&& !(media && media->ttlSeconds())
-		&& !item->originalText().text.isEmpty();
-}
-
 [[nodiscard]] QString SendError(not_null<History*> history) {
 	if (!Data::CanSendTexts(history)) {
 		return u"В этот чат нельзя отправить сообщение."_q;
@@ -324,6 +315,15 @@ void Request(
 }
 
 } // namespace
+
+// Self-destructing content never leaves the app.
+bool CanSend(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	return !item->isService()
+		&& !item->isEphemeral()
+		&& !(media && media->ttlSeconds())
+		&& !item->originalText().text.isEmpty();
+}
 
 void AddRequisitesAction(
 		not_null<Ui::PopupMenu*> menu,

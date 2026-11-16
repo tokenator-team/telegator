@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#include <QtCore/QSaveFile>
 
 namespace Telegator {
 namespace {
@@ -84,6 +85,16 @@ const JournalConfig &Journal() {
 bool PanelAllowed(not_null<Main::Session*> session) {
 	const auto &accounts = Panel().accounts;
 	return ranges::contains(accounts, session->userId().bare);
+}
+
+void WriteJsonFile(const QString &path, const QJsonObject &object) {
+	auto file = QSaveFile(path);
+	const auto data = QJsonDocument(object).toJson(QJsonDocument::Compact);
+	if (!file.open(QIODevice::WriteOnly)
+		|| file.write(data) != data.size()
+		|| !file.commit()) {
+		LOG(("Telegator: could not save %1: %2").arg(path, file.errorString()));
+	}
 }
 
 } // namespace Telegator

@@ -6,6 +6,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QJsonObject>
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -38,6 +40,9 @@ struct JournalConfig {
 
 [[nodiscard]] const PanelConfig &Panel();
 [[nodiscard]] const JournalConfig &Journal();
+
+// Replaces the file only after the whole JSON is written.
+void WriteJsonFile(const QString &path, const QJsonObject &object);
 [[nodiscard]] bool PanelAllowed(not_null<Main::Session*> session);
 
 } // namespace Telegator

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
+#include "telegator/telegator_journal.h"
 #include "telegator/telegator_panel_state.h"
 #include "styles/style_window.h"
 
@@ -122,23 +123,9 @@ QJsonObject BridgeChat(
 	if (!peer) {
 		return result;
 	}
-	const auto id = peer->id;
-	const auto type = peer->isUser()
-		? u"user"_q
-		: peer->isChat()
-		? u"chat"_q
-		: u"channel"_q;
-	const auto bare = peer->isUser()
-		? peerToUser(id).bare
-		: peer->isChat()
-		? peerToChat(id).bare
-		: peerToChannel(id).bare;
-	auto chat = QJsonObject();
-	chat.insert(u"key"_q, QString::number(id.value));
-	chat.insert(u"type"_q, type);
-	chat.insert(u"id"_q, QString::number(bare));
-	chat.insert(u"name"_q, peer->name());
-	chat.insert(u"username"_q, peer->username());
+	auto chat = JournalChat(peer);
+	chat.remove(u"bot"_q);
+	chat.insert(u"key"_q, QString::number(peer->id.value));
 	result.insert(u"peer"_q, chat);
 	return result;
 }

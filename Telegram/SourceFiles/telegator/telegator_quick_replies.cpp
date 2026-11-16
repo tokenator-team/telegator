@@ -6,29 +6,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "telegator/telegator_quick_replies.h"
 
-#include "apiwrap.h"
 #include "core/ui_integration.h"
 #include "data/business/data_shortcut_messages.h"
-#include "data/data_media_types.h"
+#include "data/data_messages.h"
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
-#include "telegator/telegator_panel.h"
 #include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_basic.h"
-#include "window/window_session_controller.h"
 
 namespace Telegator {
 namespace {
 
 constexpr auto kPreviewLength = 80;
-
-[[nodiscard]] bool TextOnly(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	return !item->originalText().text.isEmpty()
-		&& (!media || media->webpage());
-}
 
 [[nodiscard]] HistoryItem *FirstMessage(
 		not_null<Main::Session*> session,
@@ -146,62 +137,6 @@ void QuickReplies::loadMessages() {
 			_changes.fire({});
 		}, _loading[id]);
 	}
-}
-
-std::vector<not_null<HistoryItem*>> QuickReplies::messages(
-		BusinessShortcutId id) const {
-	auto result = std::vector<not_null<HistoryItem*>>();
-	const auto slice = _session->data().shortcutMessages().list(id);
-	for (const auto &fullId : slice.ids) {
-		if (const auto item = _session->data().message(fullId)) {
-			result.push_back(item);
-		}
-	}
-	return result;
-}
-
-std::vector<QuickReply> QuickReplies::list() const {
-	auto result = std::vector<QuickReply>();
-	for (const auto &shortcut : OrderedShortcuts(_session)) {
-		if (!shortcut.count) {
-			continue;
-		}
-		result.push_back({
-			.id = shortcut.id,
-			.name = shortcut.name,
-			.count = shortcut.count,
-			.preview = ShortcutPreview(_session, shortcut.id),
-		});
-	}
-	return result;
-}
-
-void QuickReplies::use(
-		BusinessShortcutId id,
-		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer) {
-	const auto items = messages(id);
-	const auto shortcut
-		= _session->data().shortcutMessages().lookupShortcut(id);
-	if (items.empty() || int(items.size()) < shortcut.count) {
-		controller->showToast(
-			u"Заготовка ещё загружается, нажмите через секунду."_q);
-		return;
-	}
-	if (items.size() == 1 && TextOnly(items.front())) {
-		const auto &text = items.front()->originalText();
-		InsertIntoChat(controller, peer, {
-			text.text,
-			TextUtilities::ConvertEntitiesToTextTags(text.entities),
-		});
-		return;
-	}
-	if (!_session->premium()) {
-		controller->showToast(
-			u"Заготовки с медиа отправляет только Telegram Premium."_q);
-		return;
-	}
-	_session->api().sendShortcutMessages(peer, id);
 }
 
 } // namespace Telegator

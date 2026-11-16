@@ -186,10 +186,7 @@ void Store::saveCursor(const Cursor &cursor) {
 	auto object = QJsonObject();
 	object.insert(u"file"_q, cursor.file);
 	object.insert(u"offset"_q, double(cursor.offset));
-	auto file = QFile(Folder() + u"cursor.json"_q);
-	if (file.open(QIODevice::WriteOnly)) {
-		file.write(QJsonDocument(object).toJson(QJsonDocument::Compact));
-	}
+	WriteJsonFile(Folder() + u"cursor.json"_q, object);
 }
 
 void Store::upload() {

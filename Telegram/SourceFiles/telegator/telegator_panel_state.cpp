@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "main/main_session.h"
 #include "settings.h"
+#include "telegator/telegator_config.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
@@ -38,10 +39,7 @@ void SaveState(const QString &key, const QJsonValue &value) {
 		return;
 	}
 	state.insert(key, value);
-	auto file = QFile(StatePath());
-	if (file.open(QIODevice::WriteOnly)) {
-		file.write(QJsonDocument(state).toJson(QJsonDocument::Compact));
-	}
+	WriteJsonFile(StatePath(), state);
 }
 
 } // namespace

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "telegator/telegator_panel.h"
 
 #include "core/file_utilities.h"
-#include "data/data_media_types.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_key.h"
@@ -91,14 +90,8 @@ constexpr auto kResizeArea = 6;
 	return { .path = path, .token = token };
 }
 
-// Self-destructing content never leaves the app.
 [[nodiscard]] bool MenuAllowed(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	return !item->isService()
-		&& !item->isEphemeral()
-		&& !(media && media->ttlSeconds())
-		&& !item->originalText().text.isEmpty()
-		&& !item->history()->isForum();
+	return CanSend(item) && !item->history()->isForum();
 }
 
 void ChooseMenu(
