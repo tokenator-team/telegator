@@ -432,6 +432,23 @@ const auto kSpaceClass = u"\\t\\n\\x{0B}\\f\\r\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
 	return rest == 1;
 }
 
+const auto kLineSpace = u"[\\t\\x{0B}\\f\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
+	"\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}"
+	"\\x{3000}]"_q;
+const auto kMts = u"(?:мтс|mts|mtc)"_q;
+const auto kMtsBank = u"МТС Банк"_q;
+const auto kMtsMoney = u"МТС Деньги (ЭКСИ Банк)"_q;
+
+[[nodiscard]] QString MtsPattern(QString pattern) {
+	return pattern
+		.replace(u"{dash}"_q, u"(?:"_q + kLineSpace + u"|[\\-‐‑–—])*"_q)
+		.replace(u"{bank}"_q, u"(?:банк(?!омат)\\w*|bank)"_q)
+		.replace(u"{mts}"_q, kMts)
+		.replace(u"{s}"_q, kLineSpace);
+}
+
+const auto kBankSuffix = MtsPattern(uR"re((?!(?:{s}|-)*[\r\n][\s-]*банк{dash}{mts}(?!\w))[\s-]*{bank}(?!\w))re"_q);
+
 [[nodiscard]] const std::vector<Row> &BankTable() {
 	static const auto result = std::vector<Row>{
 		{ uR"re(сбер(?:банк\w*|[аеуы]|ом)?|sber(?:bank)?)re"_q, u"Сбербанк"_q, u"RU"_q },
@@ -441,8 +458,8 @@ const auto kSpaceClass = u"\\t\\n\\x{0B}\\f\\r\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
 		{ uR"re(озон\w*|ozon)re"_q, u"Озон Банк"_q, u"RU"_q },
 		{ uR"re(ю[\s\-]?мани\w*|ю[\s\-]?money|yoo?money|ю[\s\-]?моней|яндекс[\s\-]?деньг\w*)re"_q, u"ЮMoney"_q, u"RU"_q },
 		{ uR"re(яндекс\w*|yandex)re"_q, u"Яндекс Банк"_q, u"RU"_q },
-		{ uR"re(мтс[\s\-]?деньг\w*|экси[\s\-]?банк\w*|эксибанк\w*)re"_q, u"Экси-Банк (МТС Деньги)"_q, u"RU"_q },
-		{ uR"re(мтс|mts)re"_q, u"МТС Банк"_q, u"RU"_q },
+		{ MtsPattern(uR"re({mts}{dash}(?:(?:деньг|денег|денги|дентг)\w*|money|dengi)|(?:\A|(?<=[\r\n])){s}*{mts}{s}*(?:\r\n?|\n){s}*деньги(?={s}*(?:[\r\n]|\z))|экси{dash}банк\w*)re"_q), kMtsMoney, u"RU"_q },
+		{ MtsPattern(uR"re({mts}{dash}{bank}|банк{dash}{mts})re"_q), kMtsBank, u"RU"_q },
 		{ uR"re(газпром\w*|гпб|gazprom\w*)re"_q, u"Газпромбанк"_q, u"RU"_q },
 		{ uR"re(рай?ф+ай?з+ен\w*|райф\w*|raif+eisen\w*)re"_q, u"Райффайзенбанк"_q, u"RU"_q },
 		{ uR"re(совком\w*|халв[аеуы])re"_q, u"Совкомбанк"_q, u"RU"_q },
@@ -466,6 +483,7 @@ const auto kSpaceClass = u"\\t\\n\\x{0B}\\f\\r\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
 		{ uR"re(дом\.?\s?рф)re"_q, u"Дом.РФ"_q, u"RU"_q },
 		{ uR"re(бспб|банк\w*\s+санкт-петербург)re"_q, u"Банк Санкт-Петербург"_q, u"RU"_q },
 		{ uR"re(цифра[\s\-]?банк\w*)re"_q, u"Цифра Банк"_q, u"RU"_q },
+		{ uR"re(свой[\s\-]?банк\w*|svoy[\s\-]?bank)re"_q, u"Свой Банк"_q, u"RU"_q },
 		{ uR"re(кубань[\s\-]?кредит\w*)re"_q, u"Кубань Кредит"_q, u"RU"_q },
 		{ uR"re(зенит\w*)re"_q, u"Зенит"_q, u"RU"_q },
 		{ uR"re(синара)re"_q, u"Синара"_q, u"RU"_q },
@@ -480,10 +498,18 @@ const auto kSpaceClass = u"\\t\\n\\x{0B}\\f\\r\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
 		{ uR"re(liberty)re"_q, u"Liberty Bank"_q, u"GE"_q },
 		{ uR"re(basis\s?bank)re"_q, u"Basisbank"_q, u"GE"_q },
 		{ uR"re(procredit)re"_q, u"ProCredit Bank"_q, u"GE"_q },
+		{ uR"re(тера[\s\-]?банк\w*|tera[\s\-]?bank)re"_q, u"TeraBank"_q, u"GE"_q },
 		{ uR"re(беларусбанк\w*|belarusbank)re"_q, u"Беларусбанк"_q, u"BY"_q },
 		{ uR"re(приорбанк\w*|priorbank)re"_q, u"Приорбанк"_q, u"BY"_q },
 		{ uR"re(моно[\s\-]?банк\w*|mono[\s\-]?bank|монобанк\w*)re"_q, u"Monobank"_q, u"UA"_q },
 		{ uR"re(приват[\s\-]?банк\w*|privat[\s\-]?bank)re"_q, u"ПриватБанк"_q, u"UA"_q },
+		{ uR"re(пумб|pumb)re"_q, u"ПУМБ"_q, u"UA"_q },
+		{ uR"re(ощад\w*|oschad\w*)re"_q, u"Ощадбанк"_q, u"UA"_q },
+		{ uR"re(укрсиб\w*|ukrsib\w*)re"_q, u"Укрсиббанк"_q, u"UA"_q },
+		{ uR"re(укргаз\w*|ukrgas\w*)re"_q, u"Укргазбанк"_q, u"UA"_q },
+		{ uR"re(сенс[\s\-]?банк\w*|sense[\s\-]?bank)re"_q, u"Sense Bank"_q, u"UA"_q },
+		{ uR"re(изибанк\w*|izibank)re"_q, u"izibank"_q, u"UA"_q },
+		{ uR"re(а-банк\w*|a-bank)re"_q, u"А-Банк"_q, u"UA"_q },
 		{ uR"re(humo|хумо)re"_q, u"Humo"_q, u"UZ"_q },
 		{ uR"re(uzcard|узкард\w*)re"_q, u"Uzcard"_q, u"UZ"_q },
 		{ uR"re(mbank|мбанк\w*)re"_q, u"MBank"_q, u"KG"_q },
@@ -529,6 +555,7 @@ const auto kSpaceClass = u"\\t\\n\\x{0B}\\f\\r\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
 		{ uR"re(trc[\s\-]?20|tron|трон)re"_q, u"TRC20"_q, u"tron"_q },
 		{ uR"re(bep[\s\-]?20|bsc|bnb\s*(?:smart\s*)?chain)re"_q, u"BEP20"_q, u"evm"_q },
 		{ uR"re(erc[\s\-]?20|ethereum)re"_q, u"ERC20"_q, u"evm"_q },
+		{ uR"re(plasma)re"_q, u"Plasma"_q, u"evm"_q },
 		{ uR"re(arbitrum)re"_q, u"Arbitrum"_q, u"evm"_q },
 		{ uR"re(polygon|matic)re"_q, u"Polygon"_q, u"evm"_q },
 		{ uR"re(ton|тон)re"_q, u"TON"_q, u"ton"_q },
@@ -844,22 +871,34 @@ const auto kBadCard = u"Номер карты не проходит провер
 	const auto low = Lower(text);
 	auto out = std::vector<Found>();
 	auto taken = std::vector<std::pair<int, int>>();
+	const auto vacant = [&](int start, int till) {
+		return std::none_of(begin(taken), end(taken), [&](const auto &span) {
+			return !(till <= span.first || start >= span.second);
+		});
+	};
 	for (const auto &bank : BankTable()) {
 		for (const auto &m : FindAll(WordPattern(bank.alias), low)) {
 			const auto start = int(m.capturedStart());
 			auto till = int(m.capturedEnd());
-			const auto overlaps = [&](const std::pair<int, int> &span) {
-				return !(till <= span.first || start >= span.second);
-			};
-			if (std::any_of(begin(taken), end(taken), overlaps)) {
+			if (!vacant(start, till)) {
 				continue;
 			}
-			const auto tail = MatchAt(uR"re([\s\-]*(?:банк\w*|bank)(?!\w))re"_q, low, till);
+			const auto tail = MatchAt(kBankSuffix, low, till);
 			if (tail.hasMatch()) {
 				till = int(tail.capturedEnd());
 			}
 			out.push_back({ Kind::Bank, bank.name, start, till, bank.extra });
 			taken.emplace_back(start, till);
+		}
+	}
+	// Bare «МТС» is two banks, the operator chooses (owner 21.11).
+	for (const auto &m : FindAll(WordPattern(kMts), low)) {
+		const auto start = int(m.capturedStart());
+		const auto till = int(m.capturedEnd());
+		if (vacant(start, till)) {
+			for (const auto &name : { kMtsBank, kMtsMoney }) {
+				out.push_back({ Kind::Bank, name, start, till, u"RU"_q });
+			}
 		}
 	}
 	for (const auto &bank : ExactCaseBankTable()) {
@@ -1157,27 +1196,13 @@ const auto kBadCard = u"Номер карты не проходит провер
 			return {};
 		}
 	}
+	auto accountChoices = std::vector<std::vector<Found>>();
 	if (accounts.size() > 1) {
-		refused = u"В сообщении несколько счетов — не понял, какой нужен."_q;
-		return {};
-	}
-	const auto isAccount = [](const Found &found) {
-		return found.kind == Kind::Account;
-	};
-	auto bottom = std::vector<std::optional<Found>>{ std::nullopt };
-	auto idents = std::vector<std::optional<Found>>();
-	if (std::any_of(begin(accounts), end(accounts), isAccount)
-		&& !cards.empty()) {
-		idents.assign(begin(cards), end(cards));
-	} else if (!phones.empty()) {
-		idents.assign(begin(phones), end(phones));
-		if (!cards.empty()) {
-			bottom.assign(begin(cards), end(cards));
+		for (const auto &account : accounts) {
+			accountChoices.push_back({ account });
 		}
-	} else if (!cards.empty()) {
-		idents.assign(begin(cards), end(cards));
 	} else {
-		idents.push_back(std::nullopt);
+		accountChoices.push_back(accounts);
 	}
 	auto bankNames = QStringList();
 	for (const auto &bank : banks) {
@@ -1204,37 +1229,58 @@ const auto kBadCard = u"Номер карты не проходит провер
 		warnings.push_back(u"Имя получателя не нашёл."_q);
 	}
 	const auto swift = Swift(text);
+	const auto isAccount = [](const Found &found) {
+		return found.kind == Kind::Account;
+	};
 	auto options = std::vector<Set>();
-	for (const auto &ident : idents) {
-		for (const auto &lowCard : bottom) {
-			for (const auto &bank : bankNames) {
-				for (const auto &name : names) {
-					auto candidates = QStringList{
-						ident ? ident->extra : QString(),
-						(bankCountry.contains(bank)
-							? bankCountry[bank]
-							: u"RU"_q),
-					};
-					for (const auto &account : accounts) {
-						candidates.push_back(account.extra);
-					}
-					auto country = u"RU"_q;
-					for (const auto &candidate : candidates) {
-						if (!candidate.isEmpty() && candidate != u"RU"_q) {
-							country = candidate;
-							break;
+	for (const auto &accountSet : accountChoices) {
+		auto bottom = std::vector<std::optional<Found>>{ std::nullopt };
+		auto idents = std::vector<std::optional<Found>>();
+		if (std::any_of(begin(accountSet), end(accountSet), isAccount)
+			&& !cards.empty()) {
+			idents.assign(begin(cards), end(cards));
+		} else if (!phones.empty()) {
+			idents.assign(begin(phones), end(phones));
+			if (!cards.empty()) {
+				bottom.assign(begin(cards), end(cards));
+			}
+		} else if (!cards.empty()) {
+			idents.assign(begin(cards), end(cards));
+		} else {
+			idents.push_back(std::nullopt);
+		}
+		for (const auto &ident : idents) {
+			for (const auto &lowCard : bottom) {
+				for (const auto &bank : bankNames) {
+					for (const auto &name : names) {
+						auto candidates = QStringList{
+							ident ? ident->extra : QString(),
+							(bankCountry.contains(bank)
+								? bankCountry[bank]
+								: u"RU"_q),
+						};
+						for (const auto &account : accountSet) {
+							candidates.push_back(account.extra);
 						}
+						auto country = u"RU"_q;
+						for (const auto &candidate : candidates) {
+							if (!candidate.isEmpty()
+								&& candidate != u"RU"_q) {
+								country = candidate;
+								break;
+							}
+						}
+						options.push_back({
+							.kind = SetKind::Fiat,
+							.country = country,
+							.ident = ident,
+							.card = lowCard,
+							.bank = bank,
+							.name = name,
+							.accounts = accountSet,
+							.swift = swift,
+						});
 					}
-					options.push_back({
-						.kind = SetKind::Fiat,
-						.country = country,
-						.ident = ident,
-						.card = lowCard,
-						.bank = bank,
-						.name = name,
-						.accounts = accounts,
-						.swift = swift,
-					});
 				}
 			}
 		}
