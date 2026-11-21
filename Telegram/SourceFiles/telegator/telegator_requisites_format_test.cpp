@@ -225,6 +225,33 @@ void CheckNamesAsWritten() {
 		{ u"+79000000000\n Иванов Д.С.\n Сбербанк"_q });
 }
 
+void CheckBareMtsGivesChoice() {
+	const auto mts = u"+79000000000\n Иван Петров\n МТС Банк"_q;
+	const auto money = u"+79000000000\n Иван Петров\n МТС Деньги (ЭКСИ Банк)"_q;
+	CheckExpected(
+		u"bare МТС: two banks"_q,
+		u"+79000000000 МТС Иван Петров"_q,
+		{ mts, money });
+	CheckExpected(
+		u"МТС Деньги typo"_q,
+		u"+79000000000 мтс дентги Иван Петров"_q,
+		{ money });
+	CheckExpected(
+		u"банк МТС"_q,
+		u"+79000000000 банк МТС Иван Петров"_q,
+		{ mts });
+}
+
+void CheckTwoAccountsGiveChoice() {
+	CheckExpected(
+		u"two accounts give a choice"_q,
+		u"40817810000000000001 или 40817810000000000002 Сбер Иван Петров"_q,
+		{
+			u"Иван Петров\n Сбербанк\n\nСчёт: 40817810000000000001"_q,
+			u"Иван Петров\n Сбербанк\n\nСчёт: 40817810000000000002"_q,
+		});
+}
+
 void CheckForwardedRefused() {
 	for (const auto out : { false, true }) {
 		const auto result = Format({
@@ -290,6 +317,8 @@ int main(int argc, char *argv[]) {
 	CheckTwoPhonesGiveChoice();
 	CheckForeignLabelsDropped();
 	CheckNamesAsWritten();
+	CheckBareMtsGivesChoice();
+	CheckTwoAccountsGiveChoice();
 	CheckForwardedRefused();
 	CheckOwnMessageEdited();
 	CheckVectors(QString::fromUtf8(argv[1]));

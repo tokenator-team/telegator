@@ -432,9 +432,9 @@ const auto kSpaceClass = u"\\t\\n\\x{0B}\\f\\r\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
 	return rest == 1;
 }
 
-const auto kLineSpace = u"[\\t\\x{0B}\\f\\x{1C}-\\x{1F} \\x{85}\\x{A0}"
-	"\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}"
-	"\\x{3000}]"_q;
+const auto kLineSpace = u'['
+	+ QString(kSpaceClass).remove(u"\\n"_q).remove(u"\\r"_q)
+	+ u']';
 const auto kMts = u"(?:мтс|mts|mtc)"_q;
 const auto kMtsBank = u"МТС Банк"_q;
 const auto kMtsMoney = u"МТС Деньги (ЭКСИ Банк)"_q;
